@@ -1,12 +1,19 @@
 "use client";
 
 import Layout from '@/components/Layout'
-import Image from 'next/image'
-import DonutChart from '../components/DonutChart/DonutChart'
+import DonutChart from '@/components/DonutChart/DonutChart'
 import { useEffect, useState } from 'react';
-import axios from 'axios'
+import useWebSocket, { ReadyState } from "react-use-websocket"
 
 export default function Home() {
+  const WS_URL = "wss://webfrontendassignment-isaraerospace.azurewebsites.net/api/SpectrumWS";
+  const { sendJsonMessage, lastJsonMessage, readyState }:any = useWebSocket(
+    WS_URL,
+    {
+      share: false,
+      shouldReconnect: () => true,
+    },
+  )
   const [vel, setVel] = useState(0)
   const velAnti = 100
   const [alti, setAlti] = useState(0)
@@ -19,39 +26,39 @@ export default function Home() {
   const [loading, setIsLoading] = useState(false)
 
 
-  const getData = async() => {
-    setIsLoading(true)
-    try {
-      const res = await axios.get('https://webfrontendassignment-isaraerospace.azurewebsites.net/api/SpectrumStatus')
-      // console.log('res ', res) 
-      const {
-        data: {
-          velocity,
-          altitude,
-          isActionRequired,
-          isAscending,
-          statusMessage,
-          temperature,
-        }
-      } = res
-      setVel(velocity)
-      setAlti(altitude)
-      setTemp(temperature)
-      setMsg(statusMessage)
-      setIsAs(isAscending)
-      setIsAction(isActionRequired)
-      setIsLoading(false)
-    } catch(err) {
-      setIsLoading(false)
-      console.log('get data err ', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+  // Run when the connection state (readyState) changes
   useEffect(() => {
-    getData()
-  }, [])
+    console.log("Connection state changed")
+    if (readyState === ReadyState.OPEN) {
+      sendJsonMessage({
+        event: "subscribe",
+        data: {
+          channel: "general-chatroom",
+        },
+      })
+    }
+  }, [readyState])
+
+  // Run when a new WebSocket message is received (lastJsonMessage)
+  useEffect(() => {
+    // console.log(`Got a new message: ${lastJsonMessage}`)
+    let res = {...lastJsonMessage}
+    // console.log(res)
+    // const {
+    //   Velocity,
+    //   Altitude,
+    //   IsActionRequired,
+    //   IsAscending,
+    //   StatusMessage,
+    //   Temperature,
+    // }:any = lastJsonMessage
+    setVel(res.Velocity)
+    setAlti(res.Altitude)
+    setTemp(res.Temperature)
+    setMsg(res.StatusMessage)
+    setIsAs(res.IsAscending)
+    setIsAction(res.IsActionRequired)
+  }, [lastJsonMessage])
 
   return (
     <main className="max-w-8xl min-h-screen p-20">
@@ -100,7 +107,7 @@ export default function Home() {
                 labels={['Altitude', 'ren']}
                 sliceColors={['#FFBC65', '#D3D3D3']}
                 data={[
-                  {label: 'Altitude', value: Number(alti.toString().substring(1))},
+                  {label: 'Altitude', value: Number(alti?.toString().substring(1))},
                   {label: 'ren', value: (altiAnti - alti)}
                 ]}
                 getTooltipLabel={() => {return(alti)}}
@@ -132,12 +139,12 @@ export default function Home() {
               <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Altitude elevation</span>
             </label>
 
-            <button
+            {/* <button
               onClick={getData} 
               className="border-2 border-blue-600 bg-transparent hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg"
             >
               Update dashboard
-            </button>
+            </button> */}
 
             <label className="relative inline-flex items-center cursor-pointer">
               <input onChange={() => setIsAction(!isAction)} type="checkbox" value="" className="sr-only peer" checked={isAction} />
